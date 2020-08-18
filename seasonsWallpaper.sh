@@ -3,16 +3,20 @@
 #                                                                                  #
 #  For use the script, the DIRECTORY_PATH constant must points to a directory      #
 #  containing four others directories. These directories' names must be "winter",  #
-#  "spring", "summer" and "autumn" and must contain wallpapers to display          #
+#  "spring", "summer" and "autumn" and must contain wallpapers to display.         #
+#  Supported formats for wallpapers are ".jpeg", ".jpg", ".png" or ".gif".         #
+#  Each seasons' directories must contain at least 2 items.                        #
 #                                                                                  #
 #----------------------------------------------------------------------------------#
 
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus"
+
 # Define the absolute directory path that contains the four others directories
-DIRECTORY_PATH=/home/julien/Bureau/seasonsWallpaper/wallpapers
+DIRECTORY_PATH=directory_path_that_contains_seasons_directories
 
 # Check the required directories
-if [ ! -d $DIRECTORY_PATH ]
-	then echo "Error: specified directory \"$DIRECTORY_PATH\" doesn't exist"
+if [ ! -d $DIRECTORY_PATH ] || [ -z $DIRECTORY_PATH ]
+	then echo -e "Error: specified directory \"$DIRECTORY_PATH\" doesn't exist\nPlease set the DIRECTORY_PATH variable"
 	exit
 fi
 
@@ -41,9 +45,29 @@ if [ $month = 01 ] || [ $month = 02 ] || ( [ $month = 12 ] && [ $day -gt 15 ] ) 
 		season="autumn"
 fi
 
-wallpapersPath=$DIRECTORY_PATH/$season
+path=$DIRECTORY_PATH/$season
 
-echo $wallpapersPath
+# Get the wallpapers from the directory which corresponds to the current season
+actualWallpaper=`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image`
+newWallpaper=$actualWallpaper
 
-# Choisir un fond d'écran au hasard dans le dossier correspondant à la saison en cours
-# Modifier le fond d'écran actuel
+cd $path
+IFS='
+'
+wallpapers=( `ls *.jpeg *.jpg *.png *.gif` )
+
+# Check if the directory contains at least 2 items
+if [ ${#wallpapers[@]} -lt 2 ]
+	then
+		echo "Error: the \"$season\" directory must contain at least 2 wallpapers"
+		exit
+fi
+
+# Randomly choose a different wallpaper than the one already set
+while [ $actualWallpaper = $newWallpaper ]
+do
+	newWallpaper=$path/${wallpapers[$(( $RANDOM % ${#wallpapers[@]} ))]}
+done
+
+# Set the wallpaper
+`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image -s $newWallpaper`
